@@ -1,0 +1,60 @@
+replicaCount: 1
+strategy:
+  type: RollingUpdate
+image:
+  repository: hashicorp/vault
+  tag: "latest"
+  pullPolicy: Always
+
+service:
+  name: vault
+  type: NodePort
+  port: 8200
+persistence:
+  enabled: true
+  hostPath: ""
+  size: 10G
+  accessMode: ReadWriteOnce
+externalConfig:
+    policies:
+      - name: allow_secrets
+        rules: path "secret/*" {
+          capabilities = ["create", "read", "update", "delete", "list"]
+          }
+      - name: allow_read_secrets_default
+        rules: path "secret/kv/terra/nonprd/default/*" {
+          capabilities = ["read", "list", "update", "delete", "list"]
+          }
+    auth:
+      - type: kubernetes
+        roles:
+          - name: default
+            bound_service_account_names: default
+            bound_service_account_namespaces: default
+            policies: allow_secrets
+            ttl: 1h
+    secrets:
+      - path: secret/kv/terra
+        type: kv
+        description: General secrets.
+        options:
+          version: 2
+config:
+  storage:
+    file:
+      path: "/vault/file"
+defaultStorage:
+    storage:
+      file:
+        path: "/vault/file"
+unsealer:
+  args:
+    [
+      "--mode",
+      "k8s",
+      "--k8s-secret-namespace",
+      "vault-operator",
+      "--k8s-secret-name",
+      "bank-vaults",
+    ]
+
